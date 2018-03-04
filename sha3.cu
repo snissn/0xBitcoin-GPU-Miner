@@ -6,6 +6,12 @@
 #include <curand_kernel.h>
 
 /*
+
+Author: Mikers
+date march 4, 2018 for 0xbitcoin dev
+
+based off of https://github.com/Dunhili/SHA3-gpu-brute-force-cracker/blob/master/sha3.cu
+
  * Author: Brian Bowden
  * Date: 5/12/14
  *
@@ -63,22 +69,6 @@ __device__ const int piln[24] = {
 
 
 
-/* this GPU kernel function calculates a random number and stores it in the parameter */
-__device__ void  random_byte(unsigned char * result) {
-//__global__ void random_byte(unsigned char * result) {
-  /* CUDA's random number library uses curandState_t to keep track of the seed value
-     we will store a random state for every thread  */
-  curandState_t state;
-
-  /* we have to initialize the state */
-  curand_init(0, /* the seed controls the sequence of random values that are produced */
-              0, /* the sequence number is only important with multiple cores */
-              0, /* the offset is how much extra we advance in the sequence for each call, can be 0 */
-              &state);
-
-  /* curand works like rand - except that it takes a state as a parameter */
-  *result = (unsigned char) curand(&state) % 256;
-}
 
 __device__ int compare_hash(unsigned char *target, unsigned char *hash, int length)
 {
@@ -375,20 +365,8 @@ __device__ void keccak(const char *message, int message_len, unsigned char *outp
     memcpy(output, state, output_len);
 }
 
-__global__ void benchmark(const char *messages, unsigned char *output, int num_messages)
-{
-	const int str_len = 6;
-	const int output_len = 32;
-	int tid = threadIdx.x + (blockIdx.x * blockDim.x);
-	int num_threads = blockDim.x * gridDim.x;
-	
-	for (; tid < num_messages; tid += num_threads)
-	{
-		keccak(&messages[tid * str_len], str_len, &output[tid * output_len], output_len);
-	}
-}
 // hash length is 256 bits
-__global__ void brute_force_single(unsigned char *challenge_hash, char * device_solution, int *done,  const unsigned char * hash_prefix, int now, int cnt)
+__global__ void gpu_mine(unsigned char *challenge_hash, char * device_solution, int *done,  const unsigned char * hash_prefix, int now, int cnt)
 {
 
 	int str_len = 84;
@@ -453,45 +431,12 @@ void gpu_init()
     max_threads_per_mp = device_prop.maxThreadsPerMultiProcessor;
     block_size = (max_threads_per_mp / gcd(max_threads_per_mp, number_threads));
     number_threads = max_threads_per_mp / block_size;
-    number_blocks = block_size * number_multi_processors;
+    number_blocks = block_size * number_multi_processors * 10;
     clock_speed = (int) (device_prop.memoryClockRate * 1000 * 1000);    // convert from GHz to hertz
 }
 
 int gcd(int a, int b) {
     return (a == 0) ? b : gcd(b % a, a);
-}
-
-/*
- * Opens a file name and reads all the Strings into an array of Strings.
- */
-char *read_in_messages(char *file_name)
-{
-	FILE *f;
-	if(!(f = fopen(file_name, "r")))
-    {
-        printf("Error opening file %s", file_name);
-        exit(1);
-    }
-
-	char *messages = (char *) malloc(sizeof(char) * num_messages * str_length);
-	if (messages == NULL)
-	{
-	    perror("Error allocating memory for list of Strings.\n");
-        exit(1);
-	}
-	
-	int index = 0;
-	char buf[10];
-	while(1)
-	{
-		if (fgets(buf, str_length + 1, f) == NULL)
-		    break;
-		buf[strlen(buf) - 1] = '\0';
-		memcpy(&messages[index], buf, str_length);
-		index += str_length - 1;
-	}
-	
-	return messages;
 }
 
 
@@ -525,7 +470,7 @@ void find_message(const char * challenge_target, const char * hash_prefix) // ca
 	
 
 		while (!h_done[0]) {
-			brute_force_single<<<number_blocks, number_threads>>>(d_challenge_hash, device_solution, d_done, d_hash_prefix, now,cnt);
+			gpu_mine<<<number_blocks, number_threads>>>(d_challenge_hash, device_solution, d_done, d_hash_prefix, now,cnt);
 cnt+=number_threads*number_blocks*20;
 //fprintf(stderr,"%u\n", cnt);
 			cudaMemcpy(h_done, d_done, sizeof(int), cudaMemcpyDeviceToHost);
@@ -543,6 +488,7 @@ cnt+=number_threads*number_blocks*20;
     fp = fopen ("out.binary", "wb") ;
     fwrite(h_message , 84, 1 , fp );
 		fclose(fp);
+fprintf(stderr,"Total hashes: %u\n", cnt);
 
 		//printf("ANSSWER IS : ");
 		//for (int j = 52; j < 84; j++)
