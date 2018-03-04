@@ -388,7 +388,7 @@ __global__ void benchmark(const char *messages, unsigned char *output, int num_m
 	}
 }
 // hash length is 256 bits
-__global__ void brute_force_single(unsigned char *challenge_hash, char * device_solution, int *done,  const unsigned char * hash_prefix, int now)
+__global__ void brute_force_single(unsigned char *challenge_hash, char * device_solution, int *done,  const unsigned char * hash_prefix, int now, int cnt)
 {
 
 	int str_len = 84;
@@ -399,8 +399,8 @@ int tid = threadIdx.x + (blockIdx.x * blockDim.x);
 
   curandState_t state;
   /* we have to initialize the state */
-  curand_init(now, tid, 0, &state);
-for(int x=0; x< 10; x++){
+  curand_init(now, tid, cnt, &state);
+for(int i =0; i<20;i++){
 
 	int len = 0;
 	for(len = 0 ; len < 52; len++){
@@ -423,9 +423,8 @@ for(int x=0; x< 10; x++){
 		done[0] = 1;
 		return; 
 	}
+
 }
-
-
   free(message);
 	free(hash);
 }
@@ -526,9 +525,9 @@ void find_message(const char * challenge_target, const char * hash_prefix) // ca
 	
 
 		while (!h_done[0]) {
-			brute_force_single<<<number_blocks, number_threads>>>(d_challenge_hash, device_solution, d_done, d_hash_prefix, now);
-cnt+=number_threads*number_blocks*10;
-//printf("%u\n", cnt);
+			brute_force_single<<<number_blocks, number_threads>>>(d_challenge_hash, device_solution, d_done, d_hash_prefix, now,cnt);
+cnt+=number_threads*number_blocks*20;
+//fprintf(stderr,"%u\n", cnt);
 			cudaMemcpy(h_done, d_done, sizeof(int), cudaMemcpyDeviceToHost);
 			
 			cudaError_t cudaerr = cudaDeviceSynchronize();
