@@ -44,5 +44,5 @@ cf.close()
 
 
 subprocess.call(["./sha3", tmpfilename, difficulty_filename])
-hashme = open('out.binary','rb').read()
-print(repr(base64.b16encode(hashme[-32:]))[2:-1])
+#hashme = open('out.binary','rb').read()
+#print(repr(base64.b16encode(hashme[-32:]))[2:-1])

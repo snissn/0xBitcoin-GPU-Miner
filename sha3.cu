@@ -482,7 +482,7 @@ cnt+=number_threads*number_blocks*20;
 			}
 		}
 
-		char * h_message = (char*)malloc(84);
+	unsigned	 char * h_message = (unsigned char*)malloc(84);
 		cudaMemcpy(h_message, device_solution, 84, cudaMemcpyDeviceToHost);
     FILE * fp;
     fp = fopen ("out.binary", "wb") ;
@@ -491,11 +491,11 @@ cnt+=number_threads*number_blocks*20;
 fprintf(stderr,"Total hashes: %u\n", cnt);
 
 		//printf("ANSSWER IS : ");
-		//for (int j = 52; j < 84; j++)
-		//{
-		      //printf("%02x",0xFF &  h_message[j]);
-		//}
-		//printf("\n");
+		for (int j = 52; j < 84; j++)
+		{
+		      printf("%02x",(unsigned char) h_message[j]);
+		}
+		printf("\n");
 }
 
 /**
